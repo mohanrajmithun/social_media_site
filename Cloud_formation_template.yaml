@@ -1,0 +1,128 @@
+
+
+Resources:
+  MyInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: us-east-1a
+      ImageId: ami-0aa2b7722dc1b5612
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !GetAtt mydjangoappsecuritygroup.GroupId
+      UserData:
+        Fn::Base64: !Sub |
+                  #!/bin/bash
+                  sudo apt update
+                  sudo apt-get install -y python3-pip
+                  pip3 install gunicorn
+                  sudo apt-get install supervisor
+                  sudo apt-get install -y nginx
+                  git clone https://github.com/mohanrajmithun/social_media_site.git
+                  cd social_media_site
+                  pip3 install -r requirements.txt
+                  python3 manage.py runserver 0.0.0.0:8000
+
+  MyInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: us-east-1a
+      ImageId: ami-0aa2b7722dc1b5612
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !GetAtt mydjangoappsecuritygroup.GroupId
+      UserData:
+        Fn::Base64: !Sub |
+                  #!/bin/bash
+                  sudo apt update
+                  sudo apt-get install -y python3-pip
+                  pip3 install gunicorn
+                  sudo apt-get install supervisor
+                  sudo apt-get install -y nginx
+                  git clone https://github.com/mohanrajmithun/social_media_site.git
+                  cd social_media_site
+                  pip3 install -r requirements.txt
+                  python3 manage.py runserver 0.0.0.0:8000
+
+
+
+
+  mydjangoappsecuritygroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: My Django app secuirty group
+      VpcId: vpc-02136bae97105fee4
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - SourceSecurityGroupId: !GetAtt mylbsecuritygroup.GroupId
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - SourceSecurityGroupId: !GetAtt mylbsecuritygroup.GroupId
+          FromPort: 8000
+          IpProtocol: tcp
+          ToPort: 8000
+
+  mylbsecuritygroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: My Load balancer secuirty group
+      VpcId: vpc-02136bae97105fee4
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+
+  myloadbalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      SecurityGroups:
+        - !Ref mylbsecuritygroup
+      Subnets:
+        - subnet-063b48ff869be9eab
+        - subnet-0204488e478a53b73
+        - subnet-0d2ba5d5735c01712
+
+  mytargetgroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled : true
+      VpcId: vpc-02136bae97105fee4
+      Port: 80
+      Protocol: HTTP
+      Targets:
+        - Id: !Ref MyInstance1
+          Port: 8000
+        - Id: !Ref MyInstance2
+          Port: 8000
+
+      TargetType: instance
+
+  mylistener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref myloadbalancer
+      DefaultActions:
+        - TargetGroupArn: !Ref mytargetgroup
+          Type: forward
+      Port: 80
+      Protocol: HTTP
+
+  mylistenerrule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+         - Type: forward
+           TargetGroupArn: !Ref mytargetgroup
+      Conditions:
+         - Field: http-request-method
+           HttpRequestMethodConfig:
+            Values:
+             - GET
+      ListenerArn: !GetAtt mylistener.ListenerArn
+      Priority: 1
+
+

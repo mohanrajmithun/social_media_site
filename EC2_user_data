@@ -1,0 +1,10 @@
+#!/bin/bash
+sudo apt update
+sudo apt-get install -y python3-pip
+pip3 install gunicorn
+sudo apt-get install supervisor
+sudo apt-get install -y nginx
+git clone https://github.com/mohanrajmithun/social_media_site.git
+cd social_media_site
+pip3 install -r requirements.txt
+python3 manage.py runserver 0.0.0.0:8000
